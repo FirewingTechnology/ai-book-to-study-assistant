@@ -5,7 +5,8 @@ import { AIVideoPlayer } from './AIVideoPlayer';
 import { SmartNotesView, QuestionsView, ExplanationView } from './VisualStudyViews';
 import './styles.css';
 
-const API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+const rawApi = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').trim();
+const API = (rawApi.startsWith('http://') || rawApi.startsWith('https://') ? rawApi : `https://${rawApi}`).replace(/\/$/, '');
 const kinds = [
   { id:'notes', label:'Smart Notes', icon:NotebookText, desc:'Concise revision points' },
   { id:'questions', label:'Important Questions', icon:CircleHelp, desc:'Practice questions by topic' },

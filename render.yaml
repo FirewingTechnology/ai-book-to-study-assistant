@@ -1,0 +1,63 @@
+# ==============================================================================
+# Render Blueprint Specification
+# AI Book-to-Study Assistant (StudyFlow AI)
+# Official Docs: https://render.com/docs/blueprint-spec
+# ==============================================================================
+version: "1"
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. FastAPI Backend REST API Web Service
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: studyflow-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@example.com
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+    # Note: On paid Render plans ($7/mo Starter), you can uncomment the persistent
+    # disk block below to keep SQLite databases between restarts:
+    # disk:
+    #   name: studyflow-data
+    #   mountPath: /opt/render/project/src/data
+    #   sizeGB: 1
+
+  # ----------------------------------------------------------------------------
+  # 2. React + Vite Frontend Static Site
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: studyflow-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: studyflow-backend
+          property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

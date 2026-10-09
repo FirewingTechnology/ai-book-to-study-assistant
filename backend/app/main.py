@@ -12,7 +12,7 @@ from pydantic import BaseModel, EmailStr
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
 UPLOAD_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "study_assistant.db"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -21,8 +21,12 @@ ALGORITHM = "HS256"
 TOKEN_HOURS = 24
 
 app = FastAPI(title="AI Book-to-Study Assistant API", version="1.0.0", description="College demo API for converting PDFs into study material")
-origins = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if x.strip()]
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+cors_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").strip()
+if cors_raw == "*":
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+else:
+    origins = [x.strip() for x in cors_raw.split(",") if x.strip()]
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
 def connect():
