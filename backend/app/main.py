@@ -268,6 +268,45 @@ def real_ai(text, topic, kind, language):
         prompt = f"Create {kind} for topic '{topic}' in {language}. Use only facts supported by the supplied source text; if insufficient, state that. Return valid JSON only, appropriate for a student. For notes use title,intro,points,exam_tip. For questions use title,questions,note. For explanation use title,level,explanation,analogy,key_terms. For video use title,duration,scenes (scene,visual,narration),source_note. For mcqs use title,questions (question,options array of 4,answer zero-based index,explanation). Mark questions as practice, not exam predictions.\nSOURCE TEXT:\n{text[:18000]}"
         response = client.chat.completions.create(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), messages=[{"role":"system","content":"You create careful educational material grounded in source text. Return only valid JSON."},{"role":"user","content":prompt}], response_format={"type":"json_object"}, temperature=0.3)
         data = json.loads(response.choices[0].message.content)
+        if isinstance(data, dict):
+            # Unwrap if model wrapped under kind e.g. {"explanation": {...}}
+            if kind in data and isinstance(data[kind], dict):
+                data = data[kind]
+            elif len(data) == 1 and isinstance(next(iter(data.values())), dict):
+                data = next(iter(data.values()))
+
+            # Sanitize explanation
+            if kind == "explanation":
+                if isinstance(data.get("explanation"), dict):
+                    exp = data["explanation"]
+                    data["explanation"] = exp.get("explanation") or exp.get("text") or exp.get("summary") or str(exp)
+                if isinstance(data.get("analogy"), dict):
+                    an = data["analogy"]
+                    data["analogy"] = an.get("analogy") or an.get("text") or an.get("metaphor") or str(an)
+                if isinstance(data.get("key_terms"), list):
+                    data["key_terms"] = [
+                        (t.get("term") or t.get("name") or str(t)) if isinstance(t, dict) else str(t)
+                        for t in data["key_terms"]
+                    ]
+
+            # Sanitize notes
+            if kind == "notes":
+                if isinstance(data.get("points"), list):
+                    data["points"] = [
+                        (p.get("point") or p.get("text") or p.get("note") or str(p)) if isinstance(p, dict) else str(p)
+                        for p in data["points"]
+                    ]
+                if isinstance(data.get("exam_tip"), dict):
+                    data["exam_tip"] = data["exam_tip"].get("tip") or data["exam_tip"].get("text") or str(data["exam_tip"])
+
+            # Sanitize questions
+            if kind == "questions":
+                if isinstance(data.get("questions"), list):
+                    data["questions"] = [
+                        (q.get("question") or q.get("text") or str(q)) if isinstance(q, dict) else str(q)
+                        for q in data["questions"]
+                    ]
+
         return data
     except Exception:
         return None

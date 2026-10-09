@@ -14,12 +14,32 @@ export function SmartNotesView({ content, topic, activeBook }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [masteredCards, setMasteredCards] = useState({});
 
-  const points = content?.points?.length ? content.points : [
-    `Foundational concepts of ${topic}`,
-    'Key protocol specifications and packet formatting',
-    'Layered communication model and interface boundaries',
-    'Performance metrics: latency, bandwidth, and reliability'
-  ];
+  // Unwrap if nested under notes
+  const notesData = (content?.notes && typeof content.notes === 'object' && !Array.isArray(content.notes))
+    ? { ...content, ...content.notes }
+    : (content || {});
+
+  const rawPoints = notesData?.points || [];
+  const points = (Array.isArray(rawPoints) && rawPoints.length > 0)
+    ? rawPoints.map(p => typeof p === 'string' ? p : (p?.point || p?.text || p?.note || JSON.stringify(p)))
+    : [
+        `Foundational concepts of ${topic}`,
+        'Key protocol specifications and packet formatting',
+        'Layered communication model and interface boundaries',
+        'Performance metrics: latency, bandwidth, and reliability'
+      ];
+
+  const introText = typeof notesData?.intro === 'string'
+    ? notesData.intro
+    : (typeof notesData?.intro === 'object' && notesData?.intro !== null
+        ? (notesData.intro.text || notesData.intro.intro || JSON.stringify(notesData.intro))
+        : `Visual revision map summarizing key concepts from ${activeBook?.title || 'the textbook'}.`);
+
+  const examTipText = typeof notesData?.exam_tip === 'string'
+    ? notesData.exam_tip
+    : (typeof notesData?.exam_tip === 'object' && notesData?.exam_tip !== null
+        ? (notesData.exam_tip.tip || notesData.exam_tip.text || JSON.stringify(notesData.exam_tip))
+        : null);
 
   const cardIcons = [Zap, Target, Layers, Compass];
   const cardTones = ['card-violet', 'card-blue', 'card-green', 'card-orange'];
@@ -50,7 +70,7 @@ export function SmartNotesView({ content, topic, activeBook }) {
         <div className="hero-banner-content">
           <div className="hero-eyebrow">TOPIC AT A GLANCE</div>
           <h3>{topic}</h3>
-          <p>{content?.intro || `Visual revision map summarizing key concepts from ${activeBook?.title || 'the textbook'}.`}</p>
+          <p>{introText}</p>
 
           <div className="visual-quick-stats">
             <div className="quick-stat-chip">
@@ -190,14 +210,14 @@ export function SmartNotesView({ content, topic, activeBook }) {
       )}
 
       {/* High-Yield Exam Tip Box */}
-      {content?.exam_tip && (
+      {examTipText && (
         <div className="visual-exam-tip-card">
           <div className="exam-tip-icon">
             <Lightbulb size={22} />
           </div>
           <div>
             <b>Exam High-Yield Tip</b>
-            <p>{content.exam_tip}</p>
+            <p>{examTipText}</p>
           </div>
         </div>
       )}
@@ -209,12 +229,20 @@ export function SmartNotesView({ content, topic, activeBook }) {
    2. IMPORTANT QUESTIONS VIEW (Interactive Reveal Flashcards)
    ======================================================== */
 export function QuestionsView({ content, topic }) {
-  const questions = content?.questions?.length ? content.questions : [
-    `Explain the fundamental architecture and purpose of ${topic}.`,
-    `What are the advantages, limitations, and primary use-cases of ${topic}?`,
-    `How does data validation and routing occur in ${topic}?`,
-    `Compare and contrast ${topic} with alternative networking protocols.`
-  ];
+  // Unwrap if nested under questions dict
+  const qData = (content?.questions && typeof content.questions === 'object' && !Array.isArray(content.questions))
+    ? { ...content, ...content.questions }
+    : (content || {});
+
+  const rawQuestions = Array.isArray(qData?.questions) ? qData.questions : (Array.isArray(content?.questions) ? content.questions : []);
+  const questions = (rawQuestions.length > 0)
+    ? rawQuestions.map(q => typeof q === 'string' ? q : (q?.question || q?.text || q?.prompt || JSON.stringify(q)))
+    : [
+        `Explain the fundamental architecture and purpose of ${topic}.`,
+        `What are the advantages, limitations, and primary use-cases of ${topic}?`,
+        `How does data validation and routing occur in ${topic}?`,
+        `Compare and contrast ${topic} with alternative networking protocols.`
+      ];
 
   const [expandedCards, setExpandedCards] = useState({});
   const [mastered, setMastered] = useState({});
@@ -310,9 +338,36 @@ export function QuestionsView({ content, topic }) {
 export function ExplanationView({ content, topic }) {
   const [activeTerm, setActiveTerm] = useState(null);
 
-  const terms = content?.key_terms?.length ? content.key_terms : [
+  // Normalize: If content itself or content.explanation is a nested object
+  const expData = (content?.explanation && typeof content.explanation === 'object' && !Array.isArray(content.explanation) && (content.explanation.explanation || content.explanation.title || content.explanation.analogy))
+    ? { ...content, ...content.explanation }
+    : (content || {});
+
+  // Extract explanation text safely (MUST be string)
+  let explanationText = '';
+  if (typeof expData.explanation === 'string' && expData.explanation.trim()) {
+    explanationText = expData.explanation;
+  } else if (typeof expData.explanation === 'object' && expData.explanation !== null) {
+    explanationText = expData.explanation.text || expData.explanation.summary || expData.explanation.explanation || expData.explanation.content || JSON.stringify(expData.explanation);
+  } else if (typeof content === 'string' && content.trim()) {
+    explanationText = content;
+  } else {
+    explanationText = `${topic} coordinates communication so devices can exchange structured information reliably without losing packets.`;
+  }
+
+  // Extract analogy text safely (MUST be string or null)
+  let analogyText = null;
+  if (typeof expData.analogy === 'string' && expData.analogy.trim()) {
+    analogyText = expData.analogy;
+  } else if (typeof expData.analogy === 'object' && expData.analogy !== null) {
+    analogyText = expData.analogy.text || expData.analogy.analogy || expData.analogy.metaphor || expData.analogy.description || JSON.stringify(expData.analogy);
+  }
+
+  // Extract key terms safely (MUST be array of strings)
+  const rawTerms = Array.isArray(expData.key_terms) ? expData.key_terms : (Array.isArray(content?.key_terms) ? content.key_terms : [
     'Packet', 'Header', 'Bandwidth', 'Protocol', 'Latency', 'Routing'
-  ];
+  ]);
+  const terms = rawTerms.map(t => (typeof t === 'string' ? t : (t?.term || t?.name || t?.word || JSON.stringify(t))));
 
   const termDefinitions = {
     packet: 'Small block of data transmitted over a network.',
@@ -356,14 +411,14 @@ export function ExplanationView({ content, topic }) {
           <div>
             <b>The Big Idea (In Simple Terms)</b>
             <p className="big-idea-text">
-              {content?.explanation || `${topic} coordinates communication so devices can exchange structured information reliably without losing packets.`}
+              {explanationText}
             </p>
           </div>
         </div>
       </div>
 
       {/* Real-World Analogy (Metaphor Card) */}
-      {content?.analogy && (
+      {analogyText && (
         <div className="analogy-metaphor-card">
           <div className="metaphor-badge">
             <Compass size={14} />
@@ -371,7 +426,7 @@ export function ExplanationView({ content, topic }) {
           </div>
           <div className="metaphor-content">
             <h4>"Think of it like a postal shipping service..."</h4>
-            <p>{content.analogy}</p>
+            <p>{analogyText}</p>
           </div>
         </div>
       )}
