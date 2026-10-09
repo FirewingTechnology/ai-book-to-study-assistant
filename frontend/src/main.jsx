@@ -5,8 +5,12 @@ import { AIVideoPlayer } from './AIVideoPlayer';
 import { SmartNotesView, QuestionsView, ExplanationView } from './VisualStudyViews';
 import './styles.css';
 
-const rawApi = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').trim();
-const API = (rawApi.startsWith('http://') || rawApi.startsWith('https://') ? rawApi : `https://${rawApi}`).replace(/\/$/, '');
+let rawApi = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').trim();
+let cleanHost = rawApi.replace(/^https?:\/\//, '').replace(/\/$/, '');
+if (!cleanHost.includes('.') && !cleanHost.includes('localhost') && cleanHost !== '127.0.0.1') {
+  cleanHost = `${cleanHost}.onrender.com`;
+}
+const API = (cleanHost.startsWith('localhost') || cleanHost.startsWith('127.0.0.1') ? `http://${cleanHost}` : `https://${cleanHost}`);
 const kinds = [
   { id:'notes', label:'Smart Notes', icon:NotebookText, desc:'Concise revision points' },
   { id:'questions', label:'Important Questions', icon:CircleHelp, desc:'Practice questions by topic' },
